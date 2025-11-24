@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Upvote Demo — Premium</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+        :root{
+            --bg-1: #e6eefc;
+            --bg-2: #eaf6ff;
+            --card: #ffffff;
+            --muted: #6b7280;
+            --accent-1: #2366ff;
+            --accent-2: #7b61ff;
+            --glass: rgba(255,255,255,0.65);
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --shadow-xl: 0 30px 70px rgba(16,24,64,0.12);
+            --shadow-md: 0 8px 30px rgba(16,24,40,0.08);
+            --glass-border: rgba(255,255,255,0.6);
+        }
+
+        *{box-sizing:border-box}
+        html,body{height:100%;margin:0}
+        body{
+            font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+            background:
+                    radial-gradient(800px 320px at 12% 12%, rgba(43,77,255,0.06), transparent),
+                    linear-gradient(180deg,var(--bg-1),var(--bg-2));
+            -webkit-font-smoothing:antialiased;
+            color:#0f1724;
+            padding:28px 20px 80px;
+        }
+
+        header{
+            max-width:1100px;margin:0 auto 28px;
+            display:flex;align-items:center;justify-content:space-between;
+            background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+            color:#fff;padding:16px 22px;border-radius:12px;box-shadow: 0 12px 40px rgba(43,79,255,0.12);
+        }
+        header .brand{font-weight:800;letter-spacing:0.2px}
+        header a{color:rgba(255,255,255,0.9);text-decoration:none;font-weight:600}
+
+        .layout { max-width:1100px; margin:0 auto; display:grid; grid-template-columns: 1fr 360px; gap:28px; align-items:start; }
+
+        /* left column: posts */
+        .main {
+            background: linear-gradient(180deg, var(--card), #fbfdff);
+            border-radius:var(--radius-lg);
+            padding:26px;
+            box-shadow: var(--shadow-xl);
+            border:1px solid var(--glass-border);
+        }
+
+        .create {
+            display:flex; gap:12px; align-items:center; margin-bottom:18px;
+        }
+        .create input[type="text"]{
+            flex:1;
+            min-width:380px;
+            padding:14px 16px;
+            border-radius:12px;
+            border:1px solid #e8f0ff;
+            background: linear-gradient(180deg,#fff,#fbfdff);
+            font-size:15px;
+            box-shadow: inset 0 1px 2px rgba(16,24,40,0.03);
+        }
+        .btn {
+            padding:10px 14px;border-radius:10px;border:0;font-weight:800;cursor:pointer;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+            color:white;
+            box-shadow: 0 10px 30px rgba(43,79,255,0.12);
+        }
+
+        h2 { margin:0 0 12px 0; font-size:18px; font-weight:800 }
+
+        .posts-wrap {
+            display:flex; flex-direction:column; gap:12px;
+            margin-top:8px;
+        }
+
+        .post {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            padding:14px 16px;
+            border-radius:12px;
+            background: linear-gradient(180deg,#ffffff,#fbfdff);
+            border:1px solid rgba(15,23,42,0.03);
+            box-shadow: var(--shadow-md);
+        }
+
+        .post-left {
+            display:flex; align-items:center; gap:12px;
+            min-width:0;
+        }
+        .avatar {
+            width:48px;height:48px;border-radius:12px;
+            background: linear-gradient(135deg,#4f63ff,#8c6bff); color:white;
+            display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;
+            box-shadow: 0 8px 18px rgba(83,95,238,0.10);
+        }
+        .meta { min-width:0 }
+        .meta .title { font-weight:700; font-size:15px; color:#0b1724; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; max-width:420px; }
+        .meta .subtitle { color:var(--muted); font-size:13px; margin-top:3px }
+
+        .post-actions { display:flex; align-items:center; gap:8px; }
+
+        /* LABEL showing what is being changed (user asked for this) */
+        .action-label {
+            font-size:13px; font-weight:700; color:var(--muted); padding:6px 10px; border-radius:999px;
+            background: linear-gradient(180deg,#f6f9ff,#fbfdff); border:1px solid rgba(15,23,42,0.02);
+            margin-right:6px;
+        }
+
+        /* plus/minus buttons */
+        .vote-btn {
+            display:inline-flex;align-items:center;justify-content:center;
+            gap:6px;padding:8px 12px;border-radius:10px;border:1px solid rgba(43,79,255,0.08);
+            background: linear-gradient(180deg,#eef4ff,#f3f0ff);
+            color:#1f3bb3;font-weight:800; cursor:pointer; box-shadow: 0 6px 18px rgba(43,79,255,0.06);
+            transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+            font-size:14px;
+        }
+        .vote-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(43,79,255,0.12) }
+
+        .vote-btn.minus { background: linear-gradient(180deg,#fff6f6,#fffaf8); color:#c23d3d; border:1px solid rgba(239,68,68,0.08) }
+        .vote-btn.small { padding:6px 10px; border-radius:8px; font-weight:700 }
+
+        .vote-count {
+            font-weight:800; font-size:15px; min-width:48px; text-align:center; color:#0b1724;
+        }
+
+        .trash {
+            display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;
+            border:1px solid rgba(15,23,42,0.03); background:transparent; cursor:pointer; color:#ef4444;
+            transition:background .12s ease, transform .12s ease;
+        }
+        .trash:hover { background: rgba(239,68,68,0.06); transform: translateY(-2px) }
+
+        /* right column: info / upvote box (keeps it small and elegant) */
+        .side {
+            display:flex;flex-direction:column;gap:16px;
+            align-items:stretch;
+        }
+
+        .panel {
+            background: linear-gradient(180deg,#ffffffee,#fbfdff);
+            border-radius:14px;padding:18px;border:1px solid rgba(255,255,255,0.6);
+            box-shadow: 0 12px 40px rgba(16,24,40,0.06);
+        }
+        .panel h3 { margin:0 0 8px 0; font-size:16px }
+        .panel p { margin:0; color:var(--muted); font-size:14px }
+
+        /* responsive */
+        @media (max-width:980px){
+            .layout { grid-template-columns: 1fr; padding:0 12px }
+            .meta .title { max-width:260px }
+            .create input[type="text"]{ min-width: 100% }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">Upvote Demo</div>
+    <a href="/logout">Sign out</a>
+</header>
+
+<div class="layout">
+    <main class="main">
+        <div class="create">
+            <input id="postTitle" placeholder="Enter post title" aria-label="Post title" />
+            <button class="btn btn-primary" onclick="createPost()">Create</button>
+        </div>
+
+        <h2>Posts</h2>
+
+        <div class="posts-wrap" id="posts">
+            <!-- posts rendered here -->
+        </div>
+    </main>
+
+    <aside class="side">
+        <div class="panel" role="complementary" aria-label="Upvote info">
+            <h3>Upvote Info</h3>
+            <p>Click the + to increment votes, − to decrement a vote, or the trash to remove the post.</p>
+        </div>
+
+        <div class="panel" role="complementary" aria-label="Tips">
+            <h3>Tips</h3>
+            <p>This demo saves posts server-side. Counts sync with the backend after each action.</p>
+        </div>
+    </aside>
+</div>
+
+<script>
+    // helper to escape text
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // fetch and render posts
+    async function fetchPosts(){
+        try {
+            const res = await fetch('/posts');
+            const data = await res.json();
+            const wrap = document.getElementById('posts');
+            wrap.innerHTML = '';
+
+            if(!data || data.length === 0){
+                wrap.innerHTML = '<div style="padding:20px;color:var(--muted);text-align:center">No posts yet — create one.</div>';
+                return;
+            }
+
+            data.forEach(post => {
+                const el = document.createElement('div');
+                el.className = 'post';
+                // store id and count for client use
+                el.dataset.id = post.id;
+                el.dataset.count = post.upvotes ?? 0;
+
+                el.innerHTML = `
+          <div class="post-left">
+            <div class="avatar" aria-hidden="true">${escapeHtml((post.title||'U').charAt(0).toUpperCase())}</div>
+            <div class="meta">
+              <div class="title">${escapeHtml(post.title)}</div>
+              <div class="subtitle">Post id: ${post.id}</div>
+            </div>
+          </div>
+
+          <div class="post-actions" role="group" aria-label="post actions">
+            <div class="action-label" title="What is being changed">Votes</div>
+
+            <button class="vote-btn" data-action="upvote" aria-label="Add vote">
+              <span aria-hidden="true">+</span>
+            </button>
+
+            <button class="vote-btn minus small" data-action="decrement" aria-label="Subtract vote">
+              <span aria-hidden="true">−</span>
+            </button>
+
+            <div class="vote-count" aria-live="polite">${post.upvotes ?? 0}</div>
+
+            <button class="trash" data-action="delete" title="Delete post" aria-label="Delete post">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        `;
+                wrap.appendChild(el);
+            });
+        } catch(err){
+            console.error('fetchPosts()', err);
+            document.getElementById('posts').innerHTML = '<div style="color:var(--muted);padding:18px;text-align:center">Error loading posts</div>';
+        }
+    }
+
+    // create post
+    async function createPost(){
+        const title = document.getElementById('postTitle').value.trim();
+        if(!title) return;
+        try{
+            const res = await fetch('/posts', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ title })
+            });
+            if(!res.ok) throw new Error('create failed');
+            document.getElementById('postTitle').value = '';
+            await fetchPosts();
+        } catch(err){
+            console.error(err);
+            alert('Could not create post.');
+        }
+    }
+
+    // delegated actions for upvote, decrement, delete
+    document.addEventListener('click', async function(e){
+        const btn = e.target.closest('[data-action]');
+        if(!btn) return;
+        const action = btn.dataset.action;
+        const postEl = btn.closest('.post');
+        if(!postEl) return;
+        const id = postEl.dataset.id;
+        let count = parseInt(postEl.dataset.count || '0', 10);
+
+        // + upvote (allows repeated clicks)
+        if(action === 'upvote'){
+            // optimistic increment UI
+            count = count + 1;
+            postEl.dataset.count = String(count);
+            postEl.querySelector('.vote-count').textContent = String(count);
+            try{
+                const resp = await fetch(`/posts/${encodeURIComponent(id)}/upvote`, { method:'POST', headers:{'Accept':'application/json'}});
+                if(!resp.ok) throw new Error('upvote failed');
+                const json = await resp.json().catch(()=>null);
+                if(json && typeof json.count !== 'undefined'){
+                    postEl.dataset.count = String(json.count);
+                    postEl.querySelector('.vote-count').textContent = String(json.count);
+                }
+            } catch(err){
+                // revert
+                count = Math.max(0, count - 1);
+                postEl.dataset.count = String(count);
+                postEl.querySelector('.vote-count').textContent = String(count);
+                console.error(err);
+                alert('Could not add vote.');
+            }
+        }
+
+        // - decrement (single)
+        if(action === 'decrement'){
+            if(count <= 0) return;
+            // optimistic
+            count = count - 1;
+            postEl.dataset.count = String(count);
+            postEl.querySelector('.vote-count').textContent = String(count);
+            try{
+                const resp = await fetch(`/posts/${encodeURIComponent(id)}/upvote`, { method:'DELETE', headers:{'Accept':'application/json'}});
+                if(!resp.ok) throw new Error('decrement failed');
+                const json = await resp.json().catch(()=>null);
+                if(json && typeof json.count !== 'undefined'){
+                    postEl.dataset.count = String(json.count);
+                    postEl.querySelector('.vote-count').textContent = String(json.count);
+                }
+            } catch(err){
+                // revert
+                count = count + 1;
+                postEl.dataset.count = String(count);
+                postEl.querySelector('.vote-count').textContent = String(count);
+                console.error(err);
+                alert('Could not remove vote.');
+            }
+        }
+
+        // delete post (confirm)
+        if(action === 'delete'){
+            const ok = window.confirm('Delete this post? This cannot be undone.');
+            if(!ok) return;
+
+            // optimistic: remove from DOM while request runs
+            const placeholder = document.createElement('div');
+            placeholder.className = 'post';
+            placeholder.style.opacity = '0.6';
+            placeholder.style.textAlign = 'center';
+            placeholder.style.padding = '14px';
+            placeholder.textContent = 'Deleting...';
+            postEl.replaceWith(placeholder);
+
+            try{
+                const resp = await fetch(`/posts/${encodeURIComponent(id)}`, { method:'DELETE', headers:{'Accept':'application/json'}});
+                if(!resp.ok) throw new Error('delete failed');
+                // success: remove placeholder
+                placeholder.remove();
+            } catch(err){
+                console.error(err);
+                alert('Could not delete post.');
+                // recover UI
+                await fetchPosts();
+            }
+        }
+    });
+
+    // initial load
+    fetchPosts();
+</script>
+</body>
+</html>
