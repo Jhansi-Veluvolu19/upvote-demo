@@ -7,18 +7,20 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/posts")
 public class PostController {
 
-    private final PostRepository repo;
+    private final Optional<PostRepository> repoOpt;
 
-    public PostController(PostRepository repo) {
-        this.repo = repo;
+    public PostController(Optional<PostRepository> repoOpt) {
+        this.repoOpt = repoOpt;
     }
 
     // -------------------------------------------------------
@@ -26,7 +28,7 @@ public class PostController {
     // -------------------------------------------------------
     @GetMapping
     public List<Post> all() {
-        return repo.findAll();
+        return repoOpt.map(PostRepository::findAll).orElse(Collections.emptyList());
     }
 
     // -------------------------------------------------------
@@ -34,7 +36,8 @@ public class PostController {
     // -------------------------------------------------------
     @GetMapping("/{id}")
     public ResponseEntity<Post> get(@PathVariable Long id) {
-        return repo.findById(id)
+        if (repoOpt.isEmpty()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        return repoOpt.get().findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -43,8 +46,13 @@ public class PostController {
     // Create a post (basic demo)
     // -------------------------------------------------------
     @PostMapping
-    public Post create(@RequestBody Post p) {
-        return repo.save(p);
+    public ResponseEntity<?> create(@RequestBody Post p) {
+        if (repoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error","No repository available"));
+        }
+        Post saved = repoOpt.get().save(p);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     // -------------------------------------------------------
@@ -56,12 +64,12 @@ public class PostController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails user
     ) {
-        return repo.findById(id).map(post -> {
-            // ensure post has increment logic (Post.increment())
-            post.increment();
-            repo.save(post);
+        if (repoOpt.isEmpty()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
 
-            // return the post (or you can return a JSON with count)
+        return repoOpt.get().findById(id).map(post -> {
+            post.increment();
+            repoOpt.get().save(post);
+
             Map<String,Object> resp = new HashMap<>();
             resp.put("count", post.getUpvotes());
             resp.put("upvoted", true);
@@ -75,15 +83,16 @@ public class PostController {
     @DeleteMapping("/{id}/upvote")
     @Transactional
     public ResponseEntity<Map<String, Object>> removeUpvote(@PathVariable Long id) {
+        if (repoOpt.isEmpty()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
 
-        return repo.findById(id).map(post -> {
+        return repoOpt.get().findById(id).map(post -> {
 
             int current = post.getUpvotes();
             if (current > 0) {
                 post.setUpvotes(current - 1);
             }
 
-            repo.save(post);
+            repoOpt.get().save(post);
 
             Map<String, Object> resp = new HashMap<>();
             resp.put("count", post.getUpvotes());
@@ -100,8 +109,10 @@ public class PostController {
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<Map<String,Object>> deletePost(@PathVariable Long id) {
-        return repo.findById(id).map(post -> {
-            repo.delete(post);
+        if (repoOpt.isEmpty()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+
+        return repoOpt.get().findById(id).map(post -> {
+            repoOpt.get().delete(post);
             Map<String,Object> resp = new HashMap<>();
             resp.put("deleted", true);
             resp.put("id", id);

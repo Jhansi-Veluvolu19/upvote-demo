@@ -1,5 +1,6 @@
 package com.example.upvote;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -7,6 +8,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 
 @Configuration
 @EnableWebSecurity
@@ -17,17 +20,33 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Provide a very small stub ClientRegistrationRepository that returns null
+     * for any registration id. This avoids InMemoryClientRegistrationRepository's
+     * "registrations cannot be empty" assertion while satisfying Spring's dependency.
+     */
+    @Bean
+    @ConditionalOnMissingBean(ClientRegistrationRepository.class)
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        return new ClientRegistrationRepository() {
+            @Override
+            public ClientRegistration findByRegistrationId(String registrationId) {
+                return null;
+            }
+        };
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf().disable() // ok for local dev; enable for production
+                .csrf().disable()
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/", "/login", "/login.html", "/perform_login",
                                 "/css/**", "/js/**", "/favicon.ico", "/error",
                                 "/oauth2/**", "/login/oauth2/**", "/h2-console/**",
                                 "/posts/**",
-                                "/auth/**"                 // <-- ADDED: allow testing endpoints
+                                "/auth/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -49,7 +68,6 @@ public class SecurityConfig {
                         .permitAll()
                 );
 
-        // allow H2 console frames for development
         http.headers().frameOptions().disable();
 
         return http.build();

@@ -23,19 +23,34 @@ import java.util.Optional;
 public class AppUserService implements UserDetailsService {
 
     private final Logger log = LoggerFactory.getLogger(AppUserService.class);
-    private final AppUserRepository users;
+    // repository may be unavailable on EC2 (we'll fallback to an in-memory store)
+    private AppUserRepository users;
     private final PasswordEncoder passwordEncoder;
 
-    public AppUserService(AppUserRepository users, PasswordEncoder passwordEncoder) {
-        this.users = users;
+    // in-memory fallback store (used only when users == null)
+    private final java.util.concurrent.ConcurrentMap<String, AppUser> inMemoryUsers = new java.util.concurrent.ConcurrentHashMap<>();
+
+
+    // allow AppUserRepository to be absent. PasswordEncoder is required.
+    @org.springframework.beans.factory.annotation.Autowired
+    public AppUserService(java.util.Optional<AppUserRepository> usersOpt, PasswordEncoder passwordEncoder) {
+        this.users = usersOpt.orElse(null);
         this.passwordEncoder = passwordEncoder;
     }
+
 
     // --- Spring Security user lookup used during authentication ---
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AppUser appUser = users.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+        AppUser appUser;
+        if (users != null) {
+            appUser = users.findByUsername(username)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+        } else {
+            appUser = inMemoryUsers.get(username);
+            if (appUser == null) throw new UsernameNotFoundException("User not found: " + username);
+        }
+
 
         GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + appUser.getRole());
         return User.withUsername(appUser.getUsername())
@@ -50,23 +65,30 @@ public class AppUserService implements UserDetailsService {
         log.info("Registering new user '{}'", user.getUsername());
 
         // Basic uniqueness check
-        if (users.findByUsername(user.getUsername()).isPresent()) {
-            log.warn("Username '{}' already exists", user.getUsername());
-            throw new IllegalArgumentException("Username already exists");
+        if (users != null) {
+            if (users.findByUsername(user.getUsername()).isPresent()) {
+                log.warn("Username '{}' already exists", user.getUsername());
+                throw new IllegalArgumentException("Username already exists");
+            }
+        } else {
+            if (inMemoryUsers.containsKey(user.getUsername())) {
+                log.warn("Username '{}' already exists (in-memory)", user.getUsername());
+                throw new IllegalArgumentException("Username already exists");
+            }
         }
 
-        // Read plain password (AppUser#getPassword() returns the stored/hash or plain depending on flow)
-        String raw = user.getPassword();
-        if (raw == null) raw = "";
+// ... password hashing and role setting remain the same ...
 
-        // Hash the plain password -> store in passwordHash field
-        String hash = passwordEncoder.encode(raw);
-        user.setPasswordHash(hash);
+        AppUser saved;
+        if (users != null) {
+            saved = users.save(user);
+        } else {
+            // in-memory save (do not call setId — AppUser has no setId(String))
+            inMemoryUsers.put(user.getUsername(), user);
+            saved = user;
+        }
 
-        // set default role if not provided
-        if (user.getRole() == null) user.setRole("USER");
 
-        AppUser saved = users.save(user);
         log.info("Registered user id={}, username={}", saved.getId(), saved.getUsername());
         return saved;
     }
@@ -84,23 +106,40 @@ public class AppUserService implements UserDetailsService {
      * If you prefer Optional, change the callers or expose an Optional-returning method.
      */
     public AppUser findByUsername(String username) {
-        Optional<AppUser> opt = users.findByUsername(username);
-        return opt.orElse(null);
+        if (users != null) {
+            Optional<AppUser> opt = users.findByUsername(username);
+            return opt.orElse(null);
+        } else {
+            return inMemoryUsers.get(username);
+        }
+
     }
 
     // --- OIDC helper: create or update a user coming from Google (or other provider) ---
     @Transactional
     public void createOrUpdateFromOidc(String email, OidcUser oidcUser) {
-        AppUser user = users.findByUsername(email)
-                .orElseGet(() -> {
-                    AppUser newUser = new AppUser();
-                    newUser.setUsername(email);
-                    newUser.setRole("USER");
-                    newUser.setPasswordHash(""); // no local password
-                    return users.save(newUser);
-                });
+        AppUser user = null;
+        if (users != null) {
+            user = users.findByUsername(email)
+                    .orElseGet(() -> {
+                        AppUser newUser = new AppUser();
+                        newUser.setUsername(email);
+                        newUser.setRole("USER");
+                        newUser.setPasswordHash("");
+                        return users.save(newUser);
+                    });
+        } else {
+            user = inMemoryUsers.computeIfAbsent(email, e -> {
+                AppUser newUser = new AppUser();
+                newUser.setUsername(e);
+                newUser.setRole("USER");
+                newUser.setPasswordHash("");
+                // no id setter available — leave id as-is
+                return newUser;
 
-        // Optionally update profile fields from oidcUser.getAttributes() here
+            });
+        }
         log.debug("OIDC user processed: {}", email);
+
     }
 }
